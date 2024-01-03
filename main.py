@@ -110,6 +110,7 @@ def respond_to_emails(service):
     for email_id in email_ids:
         email = get_email(service=service, msg_id=email_id)
         raw_sender = next((header['value'] for header in email['payload']['headers'] if header['name'] == 'From'), None)
+        subject = next((header['value'] for header in email['payload']['headers'] if header['name'] == 'Subject'), None)
         # example: 'Tue, 2 Jan 2024 06:45:33 -0800'
         date_str = next((header['value'] for header in email['payload']['headers'] if header['name'] == 'Date'), None)
 
@@ -124,13 +125,18 @@ def respond_to_emails(service):
         else:
             sender = raw_sender.split("<")[1][:-1]
         if sender not in FROM_WHITELIST:
+            print(f"Email `{sender}` not in whitelist")
             continue
 
         date = datetime.datetime.strptime(date_str, '%a, %d %b %Y %H:%M:%S %z')
-        if (datetime.datetime.now(date.tzinfo) - date).seconds > (3600 * 3):
-            # if we trash anyway, this isn't necessary. Instead, it's intended as a safeguard, so that this bot won't
-            # spam someone endlessly if something goes wrong
+        age_in_seconds = (datetime.datetime.now(date.tzinfo) - date).seconds
+        if age_in_seconds > (3600 * 3):
+            # precaution: don't spam someone endlessly if our trashing logic is bad
             continue
+        elif age_in_seconds > (3600 * 24 * 7):
+            # clear out spam, and emails which failed to trigger a response from our bot
+            print(f"Trashing email > 1 week old from sender {sender}, titled `{subject}`")
+            service.users().messages().trash(userId=USER_ID, id=email_id).execute()
 
         if not filtered_attachments:
             continue
@@ -148,11 +154,9 @@ def respond_to_emails(service):
             else:
                 pdfs[next(generate_fname)] = image_to_pdf_bytes(data_as_bytes)
 
-        print(f"Sending email to {sender}")
+        print(f"Sending email to `{sender}`")
         create_email_send_pdfs(service=service, target_address=sender, attachments=pdfs)
-        # TODO: confirm that trashing works as expected
         service.users().messages().trash(userId=USER_ID, id=email_id).execute()
-        # todo: trash any spam/miscellaneous emails that may have accumulated
 
 
 def yield_filename(base_name: str = "pdf", extension="pdf") -> Generator[str, None, None]:
