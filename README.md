@@ -1,5 +1,7 @@
 This is a personal project. This means you can use it as you like, but please note that I expect nothing of you, and promise nothing to you.
 
+However, well-informed advice on how to mitigate security risks is welcome! If you have a suggestion, I encourage you to open an issue.
+
 # What this repo contains
 This is a quick & dirty script for a GMail bot that returns images to sender, as PDFs. It uses a sender whitelist when determining who to respond to, and automatically trashes old emails. 
 
